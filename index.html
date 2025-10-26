@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniswap V4 流动性移除工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .feature {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .feature h3 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        .feature p {
+            color: #666;
+            margin-bottom: 0;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 20px 10px;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .github-link {
+            background: #333;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦄 Uniswap V4</h1>
+        <p class="subtitle">流动性移除工具</p>
+        
+        <div class="feature">
+            <h3>🎯 简单易用</h3>
+            <p>输入基本参数，一键生成 unlockData 和 deadline</p>
+        </div>
+        
+        <div class="feature">
+            <h3>🔒 安全可靠</h3>
+            <p>纯前端实现，无需连接钱包，数据不会上传到服务器</p>
+        </div>
+        
+        <div class="feature">
+            <h3>⚡ 即时生成</h3>
+            <p>使用 ethers.js 进行 ABI 编码，结果准确可靠</p>
+        </div>
+        
+        <a href="unlock-data-generator.html" class="btn">开始使用工具</a>
+        <a href="https://github.com/your-username/uniswap-v4-liquidity-remover" class="btn github-link">查看源码</a>
+        
+        <div class="footer">
+            <p>支持 Uniswap V4 DECREASE_LIQUIDITY 和 TAKE_PAIR 操作</p>
+            <p>MIT License © 2024</p>
+        </div>
+    </div>
+</body>
+</html>
