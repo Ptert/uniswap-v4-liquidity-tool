@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniswap V4 Liquidity Remover</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .generate-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        .output-container {
+            margin-top: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border: 2px solid #e1e8ed;
+        }
+
+        .output-group {
+            margin-bottom: 25px;
+        }
+
+        .output-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .output-value {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦄 Uniswap V4 Liquidity Remover</h1>
+            <p>生成移除流动性所需的 unlock_hex 和 deadline 参数</p>
+        </div>
+
+        <div class="form-container">
+            <form id="liquidityForm">
+                <div class="form-group">
+                    <label for="tokenId">Token ID (USER_TOKEN_ID):</label>
+                    <input type="number" id="tokenId" name="tokenId" placeholder="例如: 60375" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="currency0">Currency0 地址:</label>
+                    <input type="text" id="currency0" name="currency0" placeholder="0x55d398326f99059fF775485246999027B3197955" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="currency1">Currency1 地址:</label>
+                    <input type="text" id="currency1" name="currency1" placeholder="0xfAB99fCF605fD8f4593EDb70A43bA56542777777" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="recipient">接收者地址 (RECIPIENT):</label>
+                    <input type="text" id="recipient" name="recipient" placeholder="0xD290A5E8b8f4fB82B22104C7543574CCd48ab472" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="liquidity">流动性数量 (LIQUIDITY):</label>
+                    <input type="text" id="liquidity" name="liquidity" placeholder="2069679014400569651" required>
+                </div>
+
+                <button type="submit" class="generate-btn">🚀 生成参数</button>
+            </form>
+
+            <div id="errorContainer" class="error hidden"></div>
+
+            <div id="outputContainer" class="output-container hidden">
+                <div class="output-group">
+                    <label>unlock_hex (unlockData):</label>
+                    <div class="output-value" id="unlockHex">
+                        <button class="copy-btn" onclick="copyToClipboard('unlockHex')">复制</button>
+                        <span id="unlockHexValue"></span>
+                    </div>
+                </div>
+
+                <div class="output-group">
+                    <label>deadline (uint256):</label>
+                    <div class="output-value" id="deadline">
+                        <button class="copy-btn" onclick="copyToClipboard('deadline')">复制</button>
+                        <span id="deadlineValue"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>基于 <a href="https://github.com/Uniswap/v4-core" target="_blank">Uniswap V4</a> 协议 | 
+            <a href="https://github.com" target="_blank">部署到 GitHub Pages</a></p>
+        </div>
+    </div>
+
+    <script>
+        // ABI 编码函数
+        function encodeModifyLiquiditiesUnlockData(tokenId, currency0, currency1, recipient, liquidity) {
+            try {
+                // 验证地址格式
+                if (!ethers.utils.isAddress(currency0) || !ethers.utils.isAddress(currency1) || !ethers.utils.isAddress(recipient)) {
+                    throw new Error('无效的地址格式');
+                }
+
+                // 转换为 checksum 地址
+                currency0 = ethers.utils.getAddress(currency0);
+                currency1 = ethers.utils.getAddress(currency1);
+                recipient = ethers.utils.getAddress(recipient);
+
+                // 编码 DECREASE_LIQUIDITY 参数
+                const decreaseParams = ethers.utils.defaultAbiCoder.encode(
+                    ['uint256', 'uint128', 'uint128', 'uint128', 'bytes'],
+                    [tokenId, liquidity, 0, 0, '0x']
+                );
+
+                // 编码 TAKE_PAIR 参数
+                const takeParams = ethers.utils.defaultAbiCoder.encode(
+                    ['address', 'address', 'address'],
+                    [currency0, currency1, recipient]
+                );
+
+                // 动作字节序列: 0x01 (DECREASE_LIQUIDITY), 0x11 (TAKE_PAIR)
+                const actions = '0x0111';
+
+                // 编码最终的 unlockData
+                const unlockData = ethers.utils.defaultAbiCoder.encode(
+                    ['bytes', 'bytes[]'],
+                    [actions, [decreaseParams, takeParams]]
+                );
+
+                return unlockData;
+            } catch (error) {
+                throw new Error(`编码失败: ${error.message}`);
+            }
+        }
+
+        // 生成 deadline (当前时间 + 20分钟)
+        function generateDeadline() {
+            return Math.floor(Date.now() / 1000) + 1200;
+        }
+
+        // 复制到剪贴板
+        async function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId + 'Value');
+            const text = element.textContent;
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = element.parentElement.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 2000);
+            } catch (err) {
+                // 降级方案
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                const btn = element.parentElement.querySelector('.copy-btn');
+                btn.textContent = '已复制!';
+                setTimeout(() => {
+                    btn.textContent = '复制';
+                }, 2000);
+            }
+        }
+
+        // 显示错误
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            errorContainer.textContent = message;
+            errorContainer.classList.remove('hidden');
+            document.getElementById('outputContainer').classList.add('hidden');
+        }
+
+        // 显示结果
+        function showResults(unlockHex, deadline) {
+            document.getElementById('unlockHexValue').textContent = unlockHex;
+            document.getElementById('deadlineValue').textContent = deadline;
+            document.getElementById('outputContainer').classList.remove('hidden');
+            document.getElementById('errorContainer').classList.add('hidden');
+        }
+
+        // 表单提交处理
+        document.getElementById('liquidityForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            try {
+                const formData = new FormData(e.target);
+                const tokenId = formData.get('tokenId');
+                const currency0 = formData.get('currency0').trim();
+                const currency1 = formData.get('currency1').trim();
+                const recipient = formData.get('recipient').trim();
+                const liquidity = formData.get('liquidity');
+
+                // 验证输入
+                if (!tokenId || !currency0 || !currency1 || !recipient || !liquidity) {
+                    throw new Error('请填写所有必填字段');
+                }
+
+                if (isNaN(tokenId) || parseInt(tokenId) < 0) {
+                    throw new Error('Token ID 必须是有效的正整数');
+                }
+
+                if (isNaN(liquidity) || liquidity <= 0) {
+                    throw new Error('流动性数量必须是有效的正数');
+                }
+
+                // 生成参数
+                const unlockHex = encodeModifyLiquiditiesUnlockData(
+                    parseInt(tokenId),
+                    currency0,
+                    currency1,
+                    recipient,
+                    liquidity
+                );
+                
+                const deadline = generateDeadline();
+
+                // 显示结果
+                showResults(unlockHex, deadline);
+
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        // 页面加载时填入示例数据
+        window.addEventListener('load', function() {
+            document.getElementById('tokenId').value = '60375';
+            document.getElementById('currency0').value = '0x55d398326f99059fF775485246999027B3197955';
+            document.getElementById('currency1').value = '0xfAB99fCF605fD8f4593EDb70A43bA56542777777';
+            document.getElementById('recipient').value = '0xD290A5E8b8f4fB82B22104C7543574CCd48ab472';
+            document.getElementById('liquidity').value = '2069679014400569651';
+        });
+    </script>
+</body>
+</html>

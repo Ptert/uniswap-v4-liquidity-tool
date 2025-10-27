@@ -30,9 +30,9 @@ git push -u origin main
 
 ### 4. 访问网站
 - GitHub Pages 会在几分钟内部署完成
-- 访问地址：`https://YOUR_USERNAME.github.io/uniswap-v4-liquidity-tool/`
-- 主页：`https://YOUR_USERNAME.github.io/uniswap-v4-liquidity-tool/index.html`
-- 工具页面：`https://YOUR_USERNAME.github.io/uniswap-v4-liquidity-tool/unlock-data-generator.html`
+- 访问地址：`https://Ptert.github.io/uniswap-v4-liquidity-tool/`
+- 主页：`https://Ptert.github.io/uniswap-v4-liquidity-tool/index.html`
+- 工具页面：`https://Ptert.github.io/uniswap-v4-liquidity-tool/unlock-data-generator.html`
 
 ## 文件结构说明
 
