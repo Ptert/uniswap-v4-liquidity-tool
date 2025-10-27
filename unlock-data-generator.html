@@ -415,7 +415,7 @@
         <div class="header">
             <h1>🦄 Uniswap V4 UnlockData Generator</h1>
             <p>生成移除流动性所需的 unlockData 和 deadline 参数</p>
-            <a href="https://bscscan.com/address/0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b#writeContract" target="_blank">移除流动性</a>
+            <a href="https://bscscan.com/address/0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b#writeContract" target="_blank" id="removeLiquidityLink">移除流动性</a>
         </div>
 
         <div class="form-container">
@@ -507,22 +507,63 @@
                 <div class="settings-title">网络设置</div>
                 <button class="close-btn" id="closeSettingsBtn">&times;</button>
             </div>
-            <div class="settings-form-group">
-                <label for="rpcUrl">RPC URL</label>
-                <input type="text" id="rpcUrl" class="form-control" value="https://bsc-dataseed1.binance.org/">
-                <div class="help-text">BSC 网络的 RPC 端点</div>
+            <div class="settings-form-group network-selection">
+                <label for="networkSelect">选择网络</label>
+                <select id="networkSelect" class="form-control">
+                    <option value="bsc">BSC (币安智能链)</option>
+                    <option value="base">Base</option>
+                    <option value="ethereum">Ethereum (以太坊)</option>
+                </select>
+                <div class="help-text">选择要连接的区块链网络</div>
             </div>
-            <div class="settings-form-group">
-                <label for="contractAddress">PositionManager 合约地址</label>
-                <input type="text" id="contractAddress" class="form-control" value="0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b">
-                <div class="help-text">Uniswap V4 PositionManager 合约地址</div>
+            <div class="network-details">
+                <div class="settings-form-group">
+                    <label for="rpcUrl">RPC URL</label>
+                    <input type="text" id="rpcUrl" class="form-control" value="https://bsc-dataseed1.binance.org/">
+                    <div class="help-text">区块链网络的 RPC 端点</div>
+                </div>
+                <div class="settings-form-group">
+                    <label for="contractAddress">PositionManager 合约地址</label>
+                    <input type="text" id="contractAddress" class="form-control" value="0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b">
+                    <div class="help-text">Uniswap V4 PositionManager 合约地址</div>
+                </div>
             </div>
             <div class="settings-actions">
                 <button class="cancel-btn" id="cancelSettingsBtn">取消</button>
-                <button class="save-btn" id="saveSettingsBtn">保存</button>
+                <button class="save-btn" id="saveSettingsBtn">保存并连接</button>
             </div>
         </div>
     </div>
+    
+    <style>
+        /* 优化设置对话框样式 */
+        .network-selection {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        
+        .network-selection select {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .network-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .save-btn {
+            background: #1890ff;
+            font-weight: 500;
+            padding: 10px 20px;
+        }
+    </style>
 
     <script>
         // 全局变量
@@ -531,10 +572,32 @@
         let positionManagerABI;
         let isConnected = false;
 
+        // 网络配置
+        const networkConfigs = {
+            bsc: {
+                name: 'BSC',
+                rpcUrl: 'https://bsc-dataseed1.binance.org/',
+                contractAddress: '0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b',
+                explorerUrl: 'https://bscscan.com/address/'
+            },
+            base: {
+                name: 'Base',
+                rpcUrl: 'https://mainnet.base.org',
+                contractAddress: '0x7c5f5a4bbd8fd63184577525326123b519429bdc',
+                explorerUrl: 'https://basescan.org/address/'
+            },
+            ethereum: {
+                name: 'Ethereum',
+                rpcUrl: 'https://eth.llamarpc.com',
+                contractAddress: '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e',
+                explorerUrl: 'https://etherscan.io/token/'
+            }
+        };
+
         // 默认设置
         const defaultSettings = {
-            rpcUrl: 'https://bsc-dataseed1.binance.org/',
-            contractAddress: '0x7A4a5c919aE2541AeD11041A1AEeE68f1287f95b'
+            network: 'bsc',
+            ...networkConfigs.bsc
         };
 
         // 当前设置
@@ -566,16 +629,16 @@
                 
                 // 更新网络状态为已连接
                 document.getElementById('networkIndicator').classList.remove('disconnected');
-                document.getElementById('networkStatus').textContent = `已连接到 BSC 网络 (区块: ${blockNumber})`;
+                document.getElementById('networkStatus').textContent = `已连接到 ${currentSettings.networkName || 'BSC'} 网络 (区块: ${blockNumber})`;
                 isConnected = true;
                 
-                console.log(`已连接到 BSC 网络，链 ID: ${network.chainId}，当前区块: ${blockNumber}`);
+                console.log(`已连接到 ${currentSettings.networkName || '区块链'} 网络，链 ID: ${network.chainId}，当前区块: ${blockNumber}`);
             } catch (error) {
-                console.error('连接 BSC 网络失败:', error);
+                console.error(`连接 ${currentSettings.networkName || '区块链'} 网络失败:`, error);
                 document.getElementById('networkIndicator').classList.add('disconnected');
                 document.getElementById('networkStatus').textContent = '连接失败，请检查网络设置';
                 isConnected = false;
-                showError(`连接 BSC 网络失败: ${error.message}`);
+                showError(`连接 ${currentSettings.networkName || '区块链'} 网络失败: ${error.message}`);
             }
         }
 
@@ -895,12 +958,142 @@
             await initWeb3();
         });
 
+        // 初始化设置
+        function initSettings() {
+            // 从本地存储加载设置
+            const savedSettings = localStorage.getItem('unlockDataGeneratorSettings');
+            if (savedSettings) {
+                try {
+                    currentSettings = JSON.parse(savedSettings);
+                    
+                    // 确保网络名称正确设置
+                    if (currentSettings.network && networkConfigs[currentSettings.network]) {
+                        // 从网络配置中获取完整信息
+                        const networkConfig = networkConfigs[currentSettings.network];
+                        currentSettings.networkName = networkConfig.name;
+                        currentSettings.explorerUrl = networkConfig.explorerUrl;
+                        
+                        // 如果RPC或合约地址为空，使用默认值
+                        if (!currentSettings.rpcUrl) {
+                            currentSettings.rpcUrl = networkConfig.rpcUrl;
+                        }
+                        if (!currentSettings.contractAddress) {
+                            currentSettings.contractAddress = networkConfig.contractAddress;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to parse saved settings:', e);
+                    currentSettings = { ...defaultSettings };
+                }
+            }
+
+            // 填充设置表单
+            document.getElementById('networkSelect').value = currentSettings.network || 'bsc';
+            document.getElementById('rpcUrl').value = currentSettings.rpcUrl;
+            document.getElementById('contractAddress').value = currentSettings.contractAddress;
+            
+            console.log('当前网络设置:', currentSettings);
+            
+            // 更新移除流动性链接
+            updateRemoveLiquidityLink();
+        }
+        
+        // 网络选择变更处理
+        function handleNetworkChange() {
+            const selectedNetwork = document.getElementById('networkSelect').value;
+            const networkConfig = networkConfigs[selectedNetwork];
+            
+            // 添加视觉反馈
+            const select = document.getElementById('networkSelect');
+            select.style.backgroundColor = '#e6f7ff';
+            setTimeout(() => {
+                select.style.backgroundColor = '';
+            }, 300);
+            
+            // 更新表单值
+            document.getElementById('rpcUrl').value = networkConfig.rpcUrl;
+            document.getElementById('contractAddress').value = networkConfig.contractAddress;
+            
+            // 显示网络信息
+            const networkDetails = document.querySelector('.network-details');
+            networkDetails.style.borderLeft = '4px solid #1890ff';
+            setTimeout(() => {
+                networkDetails.style.borderLeft = '';
+            }, 1000);
+            
+            // 临时更新当前设置以便更新链接
+            currentSettings.network = selectedNetwork;
+            
+            // 立即更新移除流动性链接
+            updateRemoveLiquidityLink();
+        }
+
+        // 保存设置
+        function saveSettings() {
+            const selectedNetwork = document.getElementById('networkSelect').value;
+            currentSettings.network = selectedNetwork;
+            currentSettings.rpcUrl = document.getElementById('rpcUrl').value.trim();
+            currentSettings.contractAddress = document.getElementById('contractAddress').value.trim();
+            
+            // 从选定网络获取其他配置
+            const networkConfig = networkConfigs[selectedNetwork];
+            currentSettings.explorerUrl = networkConfig.explorerUrl;
+            currentSettings.networkName = networkConfig.name;
+
+            // 保存到本地存储
+            localStorage.setItem('unlockDataGeneratorSettings', JSON.stringify(currentSettings));
+
+            // 更新移除流动性链接
+            updateRemoveLiquidityLink();
+
+            // 关闭设置弹窗
+            document.getElementById('settingsModal').classList.remove('show');
+            
+            // 显示网络切换中的状态
+            document.getElementById('networkIndicator').classList.add('disconnected');
+            document.getElementById('networkStatus').textContent = `切换到 ${currentSettings.networkName} 网络中...`;
+            
+            // 重新初始化 Web3 连接
+            initWeb3();
+            
+            console.log('已保存设置，当前网络:', currentSettings.networkName);
+        }
+        
+        // 更新移除流动性链接
+        function updateRemoveLiquidityLink() {
+            const removeLiquidityLink = document.getElementById('removeLiquidityLink');
+            if (removeLiquidityLink) {
+                // 确保使用当前网络的配置
+                const network = currentSettings.network || 'bsc';
+                const explorerUrl = networkConfigs[network].explorerUrl;
+                const contractAddress = currentSettings.contractAddress || networkConfigs[network].contractAddress;
+                
+                // 更新链接
+                removeLiquidityLink.href = `${explorerUrl}${contractAddress}#writeContract`;
+                console.log('已更新移除流动性链接:', removeLiquidityLink.href, '当前网络:', network);
+            } else {
+                console.error('移除流动性链接元素未找到!');
+            }
+        }
+        
         // 页面加载完成后的初始化
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('Uniswap V4 UnlockData Generator 已加载');
             
+            // 初始化设置
+            initSettings();
+            
+            // 强制更新移除流动性链接
+            updateRemoveLiquidityLink();
+            
             // 初始化 Web3 连接
             await initWeb3();
+            
+            // 网络选择变更事件
+            document.getElementById('networkSelect').addEventListener('change', handleNetworkChange);
+            
+            // 保存设置按钮点击事件
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
         });
     </script>
 </body>
