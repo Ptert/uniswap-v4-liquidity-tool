@@ -10,7 +10,7 @@
 
 ## 使用方法
 
-1. 访问 [GitHub Pages 部署地址](https://your-username.github.io/uniswap-v4-liquidity-remover/)
+1. 访问 [GitHub Pages 部署地址](https://ptert.github.io/uniswap-v4-liquidity-tool/)
 2. 填写以下参数：
    - **Token ID**: 您的 NFT 位置 ID
    - **Currency 0**: 第一个代币的合约地址
