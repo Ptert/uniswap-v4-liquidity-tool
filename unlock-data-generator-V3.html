@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uniswap V3 Position Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .header a {
+            color: white;
+            text-decoration: underline;
+            font-weight: bold;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .header a:hover {
+            color: #f8f9fa;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group .help-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-item {
+            margin-bottom: 20px;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-value {
+            background: white;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: #5a67d8;
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pool-info {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .pool-info.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .pool-info-title {
+            font-weight: 600;
+            color: #0050b3;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .pool-info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed #d9d9d9;
+        }
+
+        .pool-info-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .pool-info-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .pool-info-value {
+            font-family: 'Courier New', monospace;
+            color: #0050b3;
+            word-break: break-all;
+        }
+
+        .network-info {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .network-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #52c41a;
+        }
+
+        .network-indicator.disconnected {
+            background: #f5222d;
+        }
+
+        .settings-btn {
+            background: transparent;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .settings-modal.show {
+            display: flex;
+        }
+
+        .settings-content {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .settings-title {
+            font-weight: 600;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .settings-form-group {
+            margin-bottom: 15px;
+        }
+
+        .settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .cancel-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cancel-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .save-btn {
+            padding: 8px 16px;
+            background: #1890ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-btn:hover {
+            background: #096dd9;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            border-bottom: 2px solid #1890ff;
+            color: #1890ff;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .fees-info {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .fees-info.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦄 Uniswap V3 Position Manager</h1>
+            <p>查看池子情况、移除流动性、归集手续费</p>
+            <a href="https://bscscan.com/address/0xC36442b4a4522E871399CD717aBDD847Ab11FE88#writeContract" target="_blank" id="positionManagerLink">合约交互</a>
+        </div>
+
+        <div class="form-container">
+            <div class="network-info">
+                <div class="network-status">
+                    <div class="network-indicator" id="networkIndicator"></div>
+                    <span id="networkStatus">连接中...</span>
+                </div>
+                <button class="settings-btn" id="settingsBtn">⚙️ 设置</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" data-tab="query">查询池子</div>
+                <div class="tab" data-tab="remove">移除流动性</div>
+                <div class="tab" data-tab="collect">归集手续费</div>
+            </div>
+
+            <!-- 查询池子 Tab -->
+            <div class="tab-content active" id="queryTab">
+                <form id="queryForm">
+                    <div class="form-group">
+                        <label for="queryTokenId">Token ID</label>
+                        <input type="number" id="queryTokenId" name="tokenId" required placeholder="例如: 60375">
+                        <div class="help-text">您的 LP Position Token ID</div>
+                    </div>
+
+                    <button type="submit" class="action-btn" id="queryBtn">
+                        🔍 查询池子信息
+                    </button>
+                </form>
+            </div>
+
+            <!-- 移除流动性 Tab -->
+            <div class="tab-content" id="removeTab">
+                <form id="removeForm">
+                    <div class="form-group">
+                        <label for="removeTokenId">Token ID</label>
+                        <input type="number" id="removeTokenId" name="tokenId" required placeholder="例如: 60375">
+                        <div class="help-text">您的 LP Position Token ID</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="liquidity">流动性数量 (百分比)</label>
+                        <input type="number" id="liquidity" name="liquidity" required min="1" max="100" value="100" placeholder="1-100">
+                        <div class="help-text">要移除的流动性百分比，100表示全部移除</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount0Min">Token0 最小数量</label>
+                        <input type="text" id="amount0Min" name="amount0Min" required value="0" placeholder="0">
+                        <div class="help-text">接收的 Token0 最小数量 (防滑点)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount1Min">Token1 最小数量</label>
+                        <input type="text" id="amount1Min" name="amount1Min" required value="0" placeholder="0">
+                        <div class="help-text">接收的 Token1 最小数量 (防滑点)</div>
+                    </div>
+
+                    <button type="submit" class="action-btn" id="removeBtn">
+                        🔥 生成移除流动性参数
+                    </button>
+                </form>
+            </div>
+
+            <!-- 归集手续费 Tab -->
+            <div class="tab-content" id="collectTab">
+                <form id="collectForm">
+                    <div class="form-group">
+                        <label for="collectTokenId">Token ID</label>
+                        <input type="number" id="collectTokenId" name="tokenId" required placeholder="例如: 60375">
+                        <div class="help-text">您的 LP Position Token ID</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recipient">接收地址</label>
+                        <input type="text" id="recipient" name="recipient" required placeholder="0xD290A5E8b8f4fB82B22104C7543574CCd48ab472">
+                        <div class="help-text">接收手续费的钱包地址</div>
+                    </div>
+
+                    <button type="submit" class="action-btn" id="collectBtn">
+                        💰 生成归集手续费参数
+                    </button>
+                </form>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在查询并生成数据...</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="pool-info" id="poolInfo">
+                <div class="pool-info-title">🏊 池子信息</div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">Token ID:</div>
+                    <div class="pool-info-value" id="infoTokenId"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">流动性:</div>
+                    <div class="pool-info-value" id="infoLiquidity"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">Token0:</div>
+                    <div class="pool-info-value" id="infoToken0"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">Token1:</div>
+                    <div class="pool-info-value" id="infoToken1"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">手续费率:</div>
+                    <div class="pool-info-value" id="infoFee"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">价格区间下限:</div>
+                    <div class="pool-info-value" id="infoTickLower"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">价格区间上限:</div>
+                    <div class="pool-info-value" id="infoTickUpper"></div>
+                </div>
+            </div>
+
+            <div class="fees-info" id="feesInfo">
+                <div class="pool-info-title">💰 可归集手续费</div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">Token0 手续费:</div>
+                    <div class="pool-info-value" id="infoFee0"></div>
+                </div>
+                <div class="pool-info-item">
+                    <div class="pool-info-label">Token1 手续费:</div>
+                    <div class="pool-info-value" id="infoFee1"></div>
+                </div>
+            </div>
+
+            <div class="results" id="results">
+                <div class="result-item">
+                    <div class="result-label">
+                        📝 调用参数
+                    </div>
+                    <div class="result-value" id="paramsResult">
+                        <button class="copy-btn" onclick="copyToClipboard('paramsResult')">复制</button>
+                        <span id="paramsValue"></span>
+                    </div>
+                </div>
+
+                <div class="result-item">
+                    <div class="result-label">
+                        ⏰ Deadline (uint256)
+                    </div>
+                    <div class="result-value" id="deadlineResult">
+                        <button class="copy-btn" onclick="copyToClipboard('deadlineResult')">复制</button>
+                        <span id="deadlineValue"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <div class="settings-title">网络设置</div>
+                <button class="close-btn" id="closeSettingsBtn">&times;</button>
+            </div>
+            <div class="settings-form-group network-selection">
+                <label for="networkSelect">选择网络</label>
+                <select id="networkSelect" class="form-control">
+                    <option value="bsc">BSC (币安智能链)</option>
+                    <option value="base">Base</option>
+                    <option value="ethereum">Ethereum (以太坊)</option>
+                </select>
+                <div class="help-text">选择要连接的区块链网络</div>
+            </div>
+            <div class="network-details">
+                <div class="settings-form-group">
+                    <label for="rpcUrl">RPC URL</label>
+                    <input type="text" id="rpcUrl" class="form-control" value="https://bsc-dataseed1.binance.org/">
+                    <div class="help-text">区块链网络的 RPC 端点</div>
+                </div>
+                <div class="settings-form-group">
+                    <label for="contractAddress">PositionManager 合约地址</label>
+                    <input type="text" id="contractAddress" class="form-control" value="0x7b8A01B39D58278b5DE7e48c8449c9f4F5170613">
+                    <div class="help-text">Uniswap V3 PositionManager 合约地址</div>
+                </div>
+            </div>
+            <div class="settings-actions">
+                <button class="cancel-btn" id="cancelSettingsBtn">取消</button>
+                <button class="save-btn" id="saveSettingsBtn">保存并连接</button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        /* 优化设置对话框样式 */
+        .network-selection {
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        
+        .network-selection select {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .network-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .save-btn {
+            background: #1890ff;
+            font-weight: 500;
+            padding: 10px 20px;
+        }
+    </style>
+
+    <script>
+        // 全局变量
+        let provider;
+        let contract;
+        let positionManagerABI;
+        let isConnected = false;
+        let currentPosition = null;
+
+        // 网络配置
+        const networkConfigs = {
+            bsc: {
+                name: 'BSC',
+                rpcUrl: 'https://bsc-dataseed1.binance.org/',
+                contractAddress: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+                explorerUrl: 'https://bscscan.com/address/'
+            },
+            base: {
+                name: 'Base',
+                rpcUrl: 'https://mainnet.base.org',
+                contractAddress: '0x03a520b32c04bf3beef7beb72e919cf822ed34f1',
+                explorerUrl: 'https://basescan.org/address/'
+            },
+            ethereum: {
+                name: 'Ethereum',
+                rpcUrl: 'https://eth.llamarpc.com',
+                contractAddress: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+                explorerUrl: 'https://etherscan.io/address/'
+            }
+        };
+
+        // 默认设置
+        const defaultSettings = {
+            network: 'bsc',
+            ...networkConfigs.bsc
+        };
+
+        // 当前设置
+        let currentSettings = { ...defaultSettings };
+
+        // 初始化 Web3 连接
+        async function initWeb3() {
+            try {
+                // 更新网络状态为连接中
+                document.getElementById('networkIndicator').classList.add('disconnected');
+                document.getElementById('networkStatus').textContent = '连接中...';
+
+                // 创建 provider
+                provider = new ethers.providers.JsonRpcProvider(currentSettings.rpcUrl);
+                
+                // 检查连接
+                const network = await provider.getNetwork();
+                const blockNumber = await provider.getBlockNumber();
+                
+                // 加载 ABI
+                await loadABI();
+                
+                // 创建合约实例
+                contract = new ethers.Contract(
+                    currentSettings.contractAddress,
+                    positionManagerABI,
+                    provider
+                );
+                
+                // 更新网络状态为已连接
+                document.getElementById('networkIndicator').classList.remove('disconnected');
+                document.getElementById('networkStatus').textContent = `已连接到 ${currentSettings.name || 'BSC'} 网络 (区块: ${blockNumber})`;
+                isConnected = true;
+                
+                // 更新合约交互链接
+                updatePositionManagerLink();
+                
+                console.log(`已连接到 ${currentSettings.name || '区块链'} 网络，链 ID: ${network.chainId}，当前区块: ${blockNumber}`);
+            } catch (error) {
+                console.error(`连接 ${currentSettings.name || '区块链'} 网络失败:`, error);
+                document.getElementById('networkIndicator').classList.add('disconnected');
+                document.getElementById('networkStatus').textContent = '连接失败，请检查网络设置';
+                isConnected = false;
+                showError(`连接 ${currentSettings.name || '区块链'} 网络失败: ${error.message}`);
+            }
+        }
+
+        // 加载 ABI
+        async function loadABI() {
+            try {
+                // 使用 V3 PositionManager ABI
+                positionManagerABI = [
+                    // positions 函数 - 查询池子信息
+                    "function positions(uint256 tokenId) external view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
+                    
+                    // decreaseLiquidity 函数 - 移除流动性
+                    "function decreaseLiquidity(tuple(uint256 tokenId, uint128 liquidity, uint256 amount0Min, uint256 amount1Min, uint256 deadline)) external payable returns (uint256 amount0, uint256 amount1)",
+                    
+                    // collect 函数 - 归集手续费
+                    "function collect(tuple(uint256 tokenId, address recipient, uint128 amount0Max, uint128 amount1Max)) external payable returns (uint256 amount0, uint256 amount1)"
+                ];
+            } catch (error) {
+                console.error("加载 ABI 失败:", error);
+                showError(`加载 ABI 失败: ${error.message}`);
+            }
+        }
+
+        // 更新合约交互链接
+        function updatePositionManagerLink() {
+            const link = document.getElementById('positionManagerLink');
+            if (link) {
+                link.href = `${currentSettings.explorerUrl}${currentSettings.contractAddress}#writeContract`;
+            }
+        }
+
+        // 查询池子信息
+        async function queryPosition(tokenId) {
+            try {
+                showLoading(true);
+                hideError();
+                hideResults();
+                
+                if (!isConnected) {
+                    throw new Error("未连接到区块链网络，请先连接");
+                }
+                
+                console.log(`查询 Token ID: ${tokenId} 的池子信息`);
+                
+                // 调用合约的 positions 函数
+                const position = await contract.positions(tokenId);
+                console.log("池子信息:", position);
+                
+                // 保存当前查询的 position
+                currentPosition = position;
+                
+                // 显示池子信息
+                document.getElementById('infoTokenId').textContent = tokenId;
+                document.getElementById('infoLiquidity').textContent = position.liquidity.toString();
+                document.getElementById('infoToken0').textContent = position.token0;
+                document.getElementById('infoToken1').textContent = position.token1;
+                document.getElementById('infoFee').textContent = `${position.fee / 10000}%`;
+                document.getElementById('infoTickLower').textContent = position.tickLower;
+                document.getElementById('infoTickUpper').textContent = position.tickUpper;
+                
+                // 显示可归集的手续费
+                document.getElementById('infoFee0').textContent = position.tokensOwed0.toString();
+                document.getElementById('infoFee1').textContent = position.tokensOwed1.toString();
+                
+                // 显示池子信息和手续费信息
+                document.getElementById('poolInfo').classList.add('show');
+                document.getElementById('feesInfo').classList.add('show');
+                
+                // 同步其他表单的 Token ID
+                document.getElementById('removeTokenId').value = tokenId;
+                document.getElementById('collectTokenId').value = tokenId;
+                
+                showLoading(false);
+                return position;
+            } catch (error) {
+                console.error("查询池子信息失败:", error);
+                showError(`查询池子信息失败: ${error.message}`);
+                showLoading(false);
+                return null;
+            }
+        }
+
+        // 生成移除流动性参数
+        async function generateRemoveLiquidityParams(tokenId, liquidityPercent, amount0Min, amount1Min) {
+            try {
+                showLoading(true);
+                hideError();
+                
+                if (!isConnected) {
+                    throw new Error("未连接到区块链网络，请先连接");
+                }
+                
+                // 如果没有当前 position 信息，先查询
+                if (!currentPosition) {
+                    currentPosition = await queryPosition(tokenId);
+                    if (!currentPosition) {
+                        throw new Error("无法获取池子信息");
+                    }
+                }
+                
+                // 计算要移除的流动性数量
+                const liquidityToRemove = currentPosition.liquidity.mul(ethers.BigNumber.from(liquidityPercent)).div(ethers.BigNumber.from(100));
+                console.log(`要移除的流动性: ${liquidityToRemove.toString()} (${liquidityPercent}%)`);
+                
+                // 计算 deadline (当前时间 + 20 分钟)
+                const deadline = Math.floor(Date.now() / 1000) + 20 * 60;
+                
+                // 构造参数
+                const params = {
+                    tokenId: tokenId,
+                    liquidity: liquidityToRemove.toString(),
+                    amount0Min: amount0Min,
+                    amount1Min: amount1Min,
+                    deadline: deadline
+                };
+                
+                console.log("移除流动性参数:", params);
+                
+                // 显示参数
+                document.getElementById('paramsValue').textContent = JSON.stringify(params, null, 2);
+                document.getElementById('deadlineValue').textContent = deadline.toString();
+                
+                // 显示结果
+                document.getElementById('results').classList.add('show');
+                
+                showLoading(false);
+                return params;
+            } catch (error) {
+                console.error("生成移除流动性参数失败:", error);
+                showError(`生成移除流动性参数失败: ${error.message}`);
+                showLoading(false);
+                return null;
+            }
+        }
+
+        // 生成归集手续费参数
+        async function generateCollectFeesParams(tokenId, recipient) {
+            try {
+                showLoading(true);
+                hideError();
+                
+                if (!isConnected) {
+                    throw new Error("未连接到区块链网络，请先连接");
+                }
+                
+                // 如果没有当前 position 信息，先查询
+                if (!currentPosition) {
+                    currentPosition = await queryPosition(tokenId);
+                    if (!currentPosition) {
+                        throw new Error("无法获取池子信息");
+                    }
+                }
+                
+                // 构造参数 (使用最大值作为 amount0Max 和 amount1Max)
+                const params = {
+                    tokenId: tokenId,
+                    recipient: recipient,
+                    amount0Max: ethers.constants.MaxUint128,
+                    amount1Max: ethers.constants.MaxUint128
+                };
+                
+                console.log("归集手续费参数:", params);
+                
+                // 显示参数
+                document.getElementById('paramsValue').textContent = JSON.stringify(params, null, 2);
+                document.getElementById('deadlineValue').textContent = "不需要 deadline 参数";
+                
+                // 显示结果
+                document.getElementById('results').classList.add('show');
+                
+                showLoading(false);
+                return params;
+            } catch (error) {
+                console.error("生成归集手续费参数失败:", error);
+                showError(`生成归集手续费参数失败: ${error.message}`);
+                showLoading(false);
+                return null;
+            }
+        }
+
+        // 复制到剪贴板
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const textToCopy = element.querySelector('span').textContent;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const copyBtn = element.querySelector('.copy-btn');
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '已复制!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+            });
+        }
+
+        // 显示/隐藏加载中
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.classList.add('show');
+        }
+
+        // 隐藏错误信息
+        function hideError() {
+            const error = document.getElementById('error');
+            error.classList.remove('show');
+        }
+
+        // 隐藏结果
+        function hideResults() {
+            document.getElementById('results').classList.remove('show');
+        }
+
+        // 初始化设置
+        function initSettings() {
+            // 从本地存储加载设置
+            const savedSettings = localStorage.getItem('v3PositionManagerSettings');
+            if (savedSettings) {
+                try {
+                    currentSettings = JSON.parse(savedSettings);
+                    
+                    // 确保网络名称正确设置
+                    if (!currentSettings.name && currentSettings.network) {
+                        currentSettings.name = networkConfigs[currentSettings.network].name;
+                    }
+                    
+                    console.log("已加载保存的设置:", currentSettings);
+                } catch (error) {
+                    console.error("解析保存的设置失败:", error);
+                    currentSettings = { ...defaultSettings };
+                }
+            }
+            
+            // 填充设置表单
+            document.getElementById('networkSelect').value = currentSettings.network || 'bsc';
+            document.getElementById('rpcUrl').value = currentSettings.rpcUrl || networkConfigs.bsc.rpcUrl;
+            document.getElementById('contractAddress').value = currentSettings.contractAddress || networkConfigs.bsc.contractAddress;
+            
+            // 初始化 Web3 连接
+            initWeb3();
+        }
+
+        // 处理网络选择变更
+        function handleNetworkChange() {
+            const networkSelect = document.getElementById('networkSelect');
+            const selectedNetwork = networkSelect.value;
+            const networkConfig = networkConfigs[selectedNetwork];
+            
+            if (networkConfig) {
+                document.getElementById('rpcUrl').value = networkConfig.rpcUrl;
+                document.getElementById('contractAddress').value = networkConfig.contractAddress;
+            }
+        }
+
+        // 保存设置
+        function saveSettings() {
+            const networkSelect = document.getElementById('networkSelect');
+            const rpcUrl = document.getElementById('rpcUrl').value;
+            const contractAddress = document.getElementById('contractAddress').value;
+            
+            // 获取选定网络的配置
+            const selectedNetwork = networkSelect.value;
+            const networkConfig = networkConfigs[selectedNetwork];
+            
+            // 更新当前设置
+            currentSettings = {
+                network: selectedNetwork,
+                name: networkConfig.name,
+                rpcUrl: rpcUrl,
+                contractAddress: contractAddress,
+                explorerUrl: networkConfig.explorerUrl
+            };
+            
+            // 保存到本地存储
+            localStorage.setItem('v3PositionManagerSettings', JSON.stringify(currentSettings));
+            
+            console.log("已保存设置:", currentSettings);
+            
+            // 关闭设置弹窗
+            document.getElementById('settingsModal').classList.remove('show');
+            
+            // 显示网络切换状态
+            document.getElementById('networkStatus').textContent = `正在切换到 ${currentSettings.name} 网络...`;
+            
+            // 重新初始化 Web3 连接
+            initWeb3();
+        }
+
+        // 切换标签页
+        function switchTab(tabId) {
+            // 移除所有标签页的 active 类
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 移除所有内容区域的 active 类
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // 为选中的标签页添加 active 类
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+            
+            // 为选中的内容区域添加 active 类
+            document.getElementById(`${tabId}Tab`).classList.add('active');
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始化设置
+            initSettings();
+            
+            // 设置按钮点击事件
+            document.getElementById('settingsBtn').addEventListener('click', () => {
+                document.getElementById('settingsModal').classList.add('show');
+            });
+            
+            // 关闭设置按钮点击事件
+            document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+                document.getElementById('settingsModal').classList.remove('show');
+            });
+            
+            // 取消设置按钮点击事件
+            document.getElementById('cancelSettingsBtn').addEventListener('click', () => {
+                document.getElementById('settingsModal').classList.remove('show');
+            });
+            
+            // 保存设置按钮点击事件
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+            
+            // 网络选择变更事件
+            document.getElementById('networkSelect').addEventListener('change', handleNetworkChange);
+            
+            // 标签页切换事件
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    switchTab(tab.getAttribute('data-tab'));
+                });
+            });
+            
+            // 查询表单提交事件
+            document.getElementById('queryForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const tokenId = document.getElementById('queryTokenId').value;
+                await queryPosition(tokenId);
+            });
+            
+            // 移除流动性表单提交事件
+            document.getElementById('removeForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const tokenId = document.getElementById('removeTokenId').value;
+                const liquidityPercent = document.getElementById('liquidity').value;
+                const amount0Min = document.getElementById('amount0Min').value;
+                const amount1Min = document.getElementById('amount1Min').value;
+                await generateRemoveLiquidityParams(tokenId, liquidityPercent, amount0Min, amount1Min);
+            });
+            
+            // 归集手续费表单提交事件
+            document.getElementById('collectForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const tokenId = document.getElementById('collectTokenId').value;
+                const recipient = document.getElementById('recipient').value;
+                await generateCollectFeesParams(tokenId, recipient);
+            });
+        });
+    </script>
+</body>
+</html>
