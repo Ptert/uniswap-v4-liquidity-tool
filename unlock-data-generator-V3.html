@@ -537,6 +537,18 @@
                         <input type="text" id="recipient" name="recipient">
                         <div class="help-text">接收手续费的钱包地址</div>
                     </div>
+                    
+                    <div class="form-group">
+                        <label for="amount0Max">Token0 最大数量</label>
+                        <input type="text" id="amount0Max" name="amount0Max" value="340282366920938463463374607431768211455">
+                        <div class="help-text">要归集的 Token0 最大数量</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount1Max">Token1 最大数量</label>
+                        <input type="text" id="amount1Max" name="amount1Max" value="340282366920938463463374607431768211455">
+                        <div class="help-text">要归集的 Token1 最大数量</div>
+                    </div>
 
                     <button type="submit" class="action-btn" id="collectBtn">
                         💰 生成归集手续费参数
@@ -593,6 +605,7 @@
                     <div class="pool-info-label">Token1 手续费:</div>
                     <div class="pool-info-value" id="infoFee1"></div>
                 </div>
+                
             </div>
 
             <div class="results" id="results">
@@ -898,7 +911,7 @@
         }
 
         // 生成归集手续费参数
-        async function generateCollectFeesParams(tokenId, recipient) {
+        async function generateCollectFeesParams(tokenId, recipient, amount0Max, amount1Max) {
             try {
                 showLoading(true);
                 hideError();
@@ -915,12 +928,12 @@
                     }
                 }
                 
-                // 构造参数 (使用最大值作为 amount0Max 和 amount1Max)
+                // 构造参数，使用传入的amount0Max和amount1Max
                 const params = {
                     tokenId: tokenId,
                     recipient: recipient,
-                    amount0Max: ethers.constants.MaxUint128,
-                    amount1Max: ethers.constants.MaxUint128
+                    amount0Max: amount0Max || ethers.constants.MaxUint128,
+                    amount1Max: amount1Max || ethers.constants.MaxUint128
                 };
                 
                 console.log("归集手续费参数:", params);
@@ -1136,7 +1149,9 @@
                 e.preventDefault();
                 const tokenId = document.getElementById('collectTokenId').value;
                 const recipient = document.getElementById('recipient').value;
-                await generateCollectFeesParams(tokenId, recipient);
+                const amount0Max = document.getElementById('amount0Max').value;
+                const amount1Max = document.getElementById('amount1Max').value;
+                await generateCollectFeesParams(tokenId, recipient, amount0Max, amount1Max);
             });
         });
     </script>
